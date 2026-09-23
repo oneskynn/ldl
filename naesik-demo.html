@@ -76,12 +76,14 @@
   }
   nav.toc .hint { font-size: 12px; color: #8A8577; line-height: 1.5; padding: 12px 8px 0; border-top: 1px solid #ECE8DF; }
   .nav-visits {
+    display: none;
     margin-top: auto;
     padding: 18px 10px 0;
     font-size: 12px;
     color: #888888;
     line-height: 1.5;
   }
+  .nav-visits.on { display: block; }
   .nav-visits b { font-weight: 400; color: #888888; font-variant-numeric: tabular-nums; }
 
   main { flex: 1 1 auto; min-width: 0; padding: 32px 16px 64px; }
@@ -2286,52 +2288,54 @@
 
 <script>
 (function () {
-  /* ── 방문자 수 ────────────────────────────────────────────────
-     GC_SITE 를 비워 두면 DEMO 숫자가 보입니다 (시연용).
-     실제 집계를 쓰려면:
-       1. goatcounter.com 가입 → 내 코드 확인
-          (대시보드 주소가 https://XXXX.goatcounter.com 이면 XXXX 가 코드)
-       2. Settings → "Allow adding visitor counts on your website" 켜기
-       3. 아래 GC_SITE 에 그 코드를 적기
-     숫자가 안 나오면 브라우저 콘솔(F12)에 실패 원인이 찍힙니다.
+  /* ── 방문 기록 ────────────────────────────────────────────────
+     GoatCounter 에 방문을 기록합니다. 숫자는 화면에 보이지 않습니다.
+       · 통계 보기   : https://oneskynn.goatcounter.com  (언제·어디서 왔는지까지)
+       · 페이지에서 보기: 주소 끝에 #visits 를 붙이고 새로고침
+     경로를 바꾸면 GC_PATH 도 같이 바꾸세요.
   ──────────────────────────────────────────────────────────── */
   var GC_SITE = 'oneskynn';
-  var GC_PATH = location.pathname || '/';   // 이 페이지만. 사이트 전체는 'TOTAL'
-  // 표시 기준: count_unique(방문한 사람 수). 전체 조회수로 바꾸려면 아래 show(...)에서 d.count 사용
-  var DEMO = 1284;
+  var GC_PATH = '/ldl/naesik-demo.html';   // 사이트 전체는 'TOTAL'
 
+  function log() {
+    try { if (window.console && console.log) console.log.apply(console, arguments); } catch (e) {}
+  }
+
+  var live = location.protocol === 'http:' || location.protocol === 'https:';
+
+  // 1) 방문 기록 (항상, 조용히)
+  if (GC_SITE && live) {
+    var sc = document.createElement('script');
+    sc.async = true;
+    sc.src = 'https://gc.zgo.at/count.js';
+    sc.setAttribute('data-goatcounter', 'https://' + GC_SITE + '.goatcounter.com/count');
+    document.head.appendChild(sc);
+  }
+
+  // 2) 숫자 표시 — 주소에 #visits 가 있을 때만
+  var wrap = document.querySelector('.nav-visits');
   var el = document.getElementById('visit-count');
-  if (!el) return;
+  var asked = location.hash === '#visits' || location.search.indexOf('visits') > -1;
+  if (!wrap || !el || !asked) return;
+
+  wrap.className = 'nav-visits on';
   function show(n) { el.textContent = typeof n === 'number' ? n.toLocaleString('ko-KR') : n; }
 
-  if (!GC_SITE) { show(DEMO); return; }
+  if (!GC_SITE || !live) { show('–'); return; }
   show('…');
 
-  // 1) 방문 기록
-  var s = document.createElement('script');
-  s.async = true;
-  s.src = 'https://gc.zgo.at/count.js';
-  s.setAttribute('data-goatcounter', 'https://' + GC_SITE + '.goatcounter.com/count');
-  document.head.appendChild(s);
-
-  // 2) 숫자 가져오기 (첫 방문은 기록보다 조회가 빠를 수 있어 한 번 더 시도)
+  var path = GC_PATH || location.pathname || '/';
   var url = 'https://' + GC_SITE + '.goatcounter.com/counter/'
-          + (GC_PATH === 'TOTAL' ? 'TOTAL' : encodeURIComponent(GC_PATH)) + '.json';
+          + (path === 'TOTAL' ? 'TOTAL' : encodeURIComponent(path)) + '.json';
 
   function load(retry) {
     fetch(url)
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status
-          + (r.status === 403 ? ' — GoatCounter 설정에서 "Allow adding visitor counts on your website" 를 켜세요'
-          : r.status === 404 ? ' — 코드(' + GC_SITE + ')가 다르거나, 이 경로의 방문 기록이 아직 없습니다'
-          : ''));
-        return r.json();
-      })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (d) { show(d.count_unique != null ? d.count_unique : d.count); })
       .catch(function (e) {
         if (retry) { setTimeout(function () { load(false); }, 2000); return; }
         show('–');
-        console.error('[방문자 수] 실패:', url, e && e.message ? e.message : e);
+        log('[방문자 수] 실패:', url, e && e.message ? e.message : e);
       });
   }
   load(true);
