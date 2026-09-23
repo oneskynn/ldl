@@ -2287,15 +2287,17 @@
 <script>
 (function () {
   /* ── 방문자 수 ────────────────────────────────────────────────
-     GitHub Pages 등 실제 웹에 올린 뒤, GC_SITE 에 GoatCounter 코드를
-     적으면 진짜 방문자 수가 표시됩니다. 비워 두면 아래 DEMO 숫자가
-     보입니다 (심사·시연용).
-       1. goatcounter.com 에서 무료 가입 → 코드(예: naesikdaero) 발급
+     GC_SITE 를 비워 두면 DEMO 숫자가 보입니다 (시연용).
+     실제 집계를 쓰려면:
+       1. goatcounter.com 가입 → 내 코드 확인
+          (대시보드 주소가 https://XXXX.goatcounter.com 이면 XXXX 가 코드)
        2. Settings → "Allow adding visitor counts on your website" 켜기
        3. 아래 GC_SITE 에 그 코드를 적기
+     숫자가 안 나오면 브라우저 콘솔(F12)에 실패 원인이 찍힙니다.
   ──────────────────────────────────────────────────────────── */
-  var GC_SITE = 'oneskynn';  // GoatCounter 코드 (예: naesikdaero)
-  var GC_PATH = location.pathname || '/';
+  var GC_SITE = 'oneskynn';
+  var GC_PATH = location.pathname || '/';   // 이 페이지만. 사이트 전체는 'TOTAL'
+  // 표시 기준: count_unique(방문한 사람 수). 전체 조회수로 바꾸려면 아래 show(...)에서 d.count 사용
   var DEMO = 1284;
 
   var el = document.getElementById('visit-count');
@@ -2303,17 +2305,36 @@
   function show(n) { el.textContent = typeof n === 'number' ? n.toLocaleString('ko-KR') : n; }
 
   if (!GC_SITE) { show(DEMO); return; }
+  show('…');
 
+  // 1) 방문 기록
   var s = document.createElement('script');
   s.async = true;
   s.src = 'https://gc.zgo.at/count.js';
   s.setAttribute('data-goatcounter', 'https://' + GC_SITE + '.goatcounter.com/count');
   document.head.appendChild(s);
 
-  fetch('https://' + GC_SITE + '.goatcounter.com/counter/' + encodeURIComponent(GC_PATH) + '.json')
-    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
-    .then(function (d) { show(d.count); })
-    .catch(function () { show(DEMO); });
+  // 2) 숫자 가져오기 (첫 방문은 기록보다 조회가 빠를 수 있어 한 번 더 시도)
+  var url = 'https://' + GC_SITE + '.goatcounter.com/counter/'
+          + (GC_PATH === 'TOTAL' ? 'TOTAL' : encodeURIComponent(GC_PATH)) + '.json';
+
+  function load(retry) {
+    fetch(url)
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status
+          + (r.status === 403 ? ' — GoatCounter 설정에서 "Allow adding visitor counts on your website" 를 켜세요'
+          : r.status === 404 ? ' — 코드(' + GC_SITE + ')가 다르거나, 이 경로의 방문 기록이 아직 없습니다'
+          : ''));
+        return r.json();
+      })
+      .then(function (d) { show(d.count_unique != null ? d.count_unique : d.count); })
+      .catch(function (e) {
+        if (retry) { setTimeout(function () { load(false); }, 2000); return; }
+        show('–');
+        console.error('[방문자 수] 실패:', url, e && e.message ? e.message : e);
+      });
+  }
+  load(true);
 })();
 
 (function () {
