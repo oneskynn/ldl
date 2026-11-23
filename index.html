@@ -475,7 +475,7 @@ summary:focus-visible,input:focus-visible,select:focus-visible,button:focus-visi
 </header>
 
 <section class="hero-bg-m" style="position: relative; overflow: hidden">
-<img src="assets/hero_bg_tall.jpg" alt="" aria-hidden="true" style="position: absolute; left: -335px; bottom: 0; width: 983px; max-width: none; height: auto; display: block; pointer-events: none">
+<img src="assets/hero_bg_tall.jpg" alt="" aria-hidden="true" style="position: absolute; left: -365px; bottom: 0; width: 983px; max-width: none; height: auto; display: block; pointer-events: none">
 <div style="position: absolute; inset: 0; background: linear-gradient(#faf8f3, rgba(250,248,243,0.9) 38%, rgba(250,248,243,0) 56%)"></div>
 <div style="position: relative; padding: 40px 20px 28px; display: flex; flex-direction: column; gap: 16px; min-height: 487px; height: clamp(487px, calc(100svh - 56px), 788px)">
 <p style="margin: 0; font-size: 13px; line-height: 19px; font-weight: 800; letter-spacing: 0.04em; color: #11776a">재검을 앞둔 분을 위한 식단 기록</p>
@@ -485,7 +485,7 @@ summary:focus-visible,input:focus-visible,select:focus-visible,button:focus-visi
 </div>
 </section>
 
-<section style="padding: 56px 0; background: #ffffff; border-top: 1px solid #d9d4c7">
+<section data-after-hero="" style="padding: 56px 0; background: #ffffff; border-top: 1px solid #d9d4c7">
 <div style="display: flex; flex-direction: column; gap: 24px">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 8px; width: 100%">
 <p class="eyebrow">나 같은 사람들</p>
@@ -951,8 +951,29 @@ card.style.boxShadow = cover[i] > 0 ? '0 -16px 40px rgba(92,64,24,' + (0.14 * co
 document.addEventListener('scroll', this._onScroll, true);
 window.addEventListener('resize', this._onScroll);
 this._onScroll();
+this._lastY = window.scrollY;
+this._snapping = false;
+this._onSnap = () => {
+const y = window.scrollY;
+const next = document.querySelector('[data-after-hero]');
+const head = document.querySelector('header');
+if (!next || this._snapping) { this._lastY = y; return; }
+const target = Math.round(next.getBoundingClientRect().top + y - (head ? head.offsetHeight : 0));
+let to = null;
+if (y > this._lastY && this._lastY < 8 && y < target - 8) to = target;
+else if (y < this._lastY && this._lastY >= target - 8 && y > 8 && y < target - 8) to = 0;
+this._lastY = y;
+if (to === null) return;
+this._snapping = true;
+window.scrollTo({ top: to, behavior: 'smooth' });
+clearTimeout(this._snapT);
+this._snapT = setTimeout(() => { this._snapping = false; this._lastY = window.scrollY; }, 700);
+};
+window.addEventListener('scroll', this._onSnap, { passive: true });
 }
 componentWillUnmount() {
+window.removeEventListener('scroll', this._onSnap);
+clearTimeout(this._snapT);
 document.removeEventListener('scroll', this._onScroll, true);
 window.removeEventListener('resize', this._onScroll);
 if (this._raf) cancelAnimationFrame(this._raf);
