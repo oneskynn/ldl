@@ -953,27 +953,33 @@ window.addEventListener('resize', this._onScroll);
 this._onScroll();
 this._lastY = window.scrollY;
 this._snapping = false;
+this._atTop = window.scrollY <= 8;
 this._onSnap = () => {
 const y = window.scrollY;
 const next = document.querySelector('[data-after-hero]');
 const head = document.querySelector('header');
+clearTimeout(this._settleT);
+this._settleT = setTimeout(() => { this._atTop = window.scrollY <= 8; this._lastY = window.scrollY; }, 250);
 if (!next || this._snapping) { this._lastY = y; return; }
 const target = Math.round(next.getBoundingClientRect().top + y - (head ? head.offsetHeight : 0));
 let to = null;
-if (y > this._lastY && this._lastY < 8 && y < target - 8) to = target;
+if (this._atTop && y > this._lastY && y > 2 && y < target - 8) to = target;
 else if (y < this._lastY && this._lastY >= target - 8 && y > 8 && y < target - 8) to = 0;
 this._lastY = y;
+if (y > 8) this._atTop = false;
 if (to === null) return;
 this._snapping = true;
+this._atTop = false;
 window.scrollTo({ top: to, behavior: 'smooth' });
 clearTimeout(this._snapT);
-this._snapT = setTimeout(() => { this._snapping = false; this._lastY = window.scrollY; }, 700);
+this._snapT = setTimeout(() => { this._snapping = false; this._lastY = window.scrollY; }, 800);
 };
 window.addEventListener('scroll', this._onSnap, { passive: true });
 }
 componentWillUnmount() {
 window.removeEventListener('scroll', this._onSnap);
 clearTimeout(this._snapT);
+clearTimeout(this._settleT);
 document.removeEventListener('scroll', this._onScroll, true);
 window.removeEventListener('resize', this._onScroll);
 if (this._raf) cancelAnimationFrame(this._raf);
